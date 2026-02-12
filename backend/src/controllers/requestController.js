@@ -231,6 +231,93 @@ const getRequestLogs = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+const getUserDashboard = async (req, res) => {
+  try {
+    const { status } = req.query;
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const query = {
+      createdBy: req.user.id,
+    };
+
+    if (status) {
+      query.status = status;
+    }
+
+    const requests = await Request.find(query)
+      .populate("createdBy", "name email")
+      .populate("assignedApprover", "name email")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    res.json(requests);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getPendingApprovals = async (req, res) => {
+  try {
+    const requests = await Request.find({
+      assignedApprover: req.user.id,
+      status: REQUEST_STATUS.SUBMITTED,
+    })
+      .populate("createdBy", "name email")
+      .sort({ createdAt: -1 });
+
+    res.json(requests);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+const getAllRequestsAdmin = async (req, res) => {
+  try {
+    const { status, type, createdBy, page = 1, limit = 10 } = req.query;
+
+    const query = {};
+
+    if (status) query.status = status;
+    if (type) query.type = type;
+    if (createdBy) query.createdBy = createdBy;
+
+    const requests = await Request.find(query)
+      .populate("createdBy", "name email")
+      .populate("assignedApprover", "name email")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    res.json(requests);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+const getRequestById = async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id)
+      .populate("createdBy", "name email role")
+      .populate("assignedApprover", "name email role");
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    const isCreator = request.createdBy._id.toString() === req.user.id;
+    const isApprover = request.assignedApprover._id.toString() === req.user.id;
+    const isAdmin = req.user.role === "ADMIN";
+
+    if (!isCreator && !isApprover && !isAdmin) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    res.json(request);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 module.exports = {
   createRequest,
@@ -240,4 +327,8 @@ module.exports = {
   rejectRequest,
   getMyRequests,
   getRequestLogs,
+  getUserDashboard,
+  getPendingApprovals,
+  getAllRequestsAdmin,
+  getRequestById,
 };

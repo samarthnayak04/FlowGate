@@ -12,6 +12,11 @@ const {
   rejectRequest,
   getMyRequests,
   getRequestLogs,
+
+  getUserDashboard,
+  getPendingApprovals,
+  getAllRequestsAdmin,
+  getRequestById,
 } = require("../controllers/requestController");
 
 router.post("/", authMiddleware, createRequest);
@@ -32,7 +37,24 @@ router.post(
   rejectRequest,
 );
 
-router.get("/my", authMiddleware, getMyRequests);
+// router.get("/my", authMiddleware, getMyRequests);
 router.get("/:id/logs", authMiddleware, getRequestLogs);
+router.get("/my", authMiddleware, getUserDashboard);
+
+router.get(
+  "/pending",
+  authMiddleware,
+  authorizeRoles("APPROVER"),
+  getPendingApprovals,
+);
+
+router.get(
+  "/all",
+  authMiddleware,
+  authorizeRoles("ADMIN"),
+  getAllRequestsAdmin,
+);
+
+router.get("/:id", authMiddleware, getRequestById);
 
 module.exports = router;
