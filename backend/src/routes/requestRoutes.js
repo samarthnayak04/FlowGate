@@ -11,6 +11,7 @@ const {
   approveRequest,
   rejectRequest,
   getMyRequests,
+  getRequestLogs,
 } = require("../controllers/requestController");
 
 router.post("/", authMiddleware, createRequest);
@@ -32,5 +33,6 @@ router.post(
 );
 
 router.get("/my", authMiddleware, getMyRequests);
+router.get("/:id/logs", authMiddleware, getRequestLogs);
 
 module.exports = router;

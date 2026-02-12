@@ -1,4 +1,5 @@
 const { Request } = require("../models/Request");
+const { AuditLog } = require("../models/AuditLog");
 
 /**
  * 1️⃣ Create Request (Draft)
@@ -14,7 +15,13 @@ const createRequest = async (req, res) => {
       createdBy: req.user.id,
       assignedApprover,
     });
-
+    await AuditLog.create({
+      request: request._id,
+      action: "CREATE",
+      fromStatus: null,
+      toStatus: "DRAFT",
+      performedBy: req.user.id,
+    });
     res.status(201).json(request);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -47,6 +54,13 @@ const updateRequest = async (req, res) => {
     request.description = description || request.description;
 
     await request.save();
+    await AuditLog.create({
+      request: request._id,
+      action: "UPDATE",
+      fromStatus: "DRAFT",
+      toStatus: "DRAFT",
+      performedBy: req.user.id,
+    });
 
     res.json(request);
   } catch (error) {
@@ -72,11 +86,18 @@ const submitRequest = async (req, res) => {
     if (request.createdBy.toString() !== req.user.id) {
       return res.status(403).json({ message: "Not authorized" });
     }
+    const oldStatus = request.status;
 
     request.status = "SUBMITTED";
 
     await request.save();
-
+    await AuditLog.create({
+      request: request._id,
+      action: "SUBMIT",
+      fromStatus: oldStatus,
+      toStatus: "SUBMITTED",
+      performedBy: req.user.id,
+    });
     res.json(request);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -103,11 +124,17 @@ const approveRequest = async (req, res) => {
     if (request.assignedApprover.toString() !== req.user.id) {
       return res.status(403).json({ message: "Not assigned approver" });
     }
-
+    const oldStatus = request.status;
     request.status = "APPROVED";
 
     await request.save();
-
+    await AuditLog.create({
+      request: request._id,
+      action: "APPROVE",
+      fromStatus: oldStatus,
+      toStatus: "APPROVED",
+      performedBy: req.user.id,
+    });
     res.json(request);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -134,11 +161,17 @@ const rejectRequest = async (req, res) => {
     if (request.assignedApprover.toString() !== req.user.id) {
       return res.status(403).json({ message: "Not assigned approver" });
     }
-
+    const oldStatus = request.status;
     request.status = "REJECTED";
 
     await request.save();
-
+    await AuditLog.create({
+      request: request._id,
+      action: "REJECT",
+      fromStatus: oldStatus,
+      toStatus: "REJECTED",
+      performedBy: req.user.id,
+    });
     res.json(request);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -157,6 +190,31 @@ const getMyRequests = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+const getRequestLogs = async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    const isCreator = request.createdBy.toString() === req.user.id;
+    const isApprover = request.assignedApprover.toString() === req.user.id;
+    const isAdmin = req.user.role === "ADMIN";
+
+    if (!isCreator && !isApprover && !isAdmin) {
+      return res.status(403).json({ message: "Not authorized to view logs" });
+    }
+
+    const logs = await AuditLog.find({ request: request._id })
+      .sort({ createdAt: -1 })
+      .populate("performedBy", "name role");
+
+    res.json(logs);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 module.exports = {
   createRequest,
@@ -165,4 +223,5 @@ module.exports = {
   approveRequest,
   rejectRequest,
   getMyRequests,
+  getRequestLogs,
 };
