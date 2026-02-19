@@ -20,9 +20,14 @@ const generateToken = (user) => {
 /**
  * Register Controller
  */
+const SELF_ASSIGNABLE_ROLES = ["USER", "APPROVER"];
+
 const register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
+    if (role && !SELF_ASSIGNABLE_ROLES.includes(role)) {
+      return res.status(403).json({ message: "Cannot self-assign this role" });
+    }
 
     const existingUser = await User.findOne({ email });
 
@@ -39,14 +44,14 @@ const register = async (req, res) => {
 
     res.status(201).json({
       message: "User registered successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        role: user.role,
-      },
+      user: { id: user._id, name: user.name, role: user.role },
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    const isDev = process.env.NODE_ENV === "development";
+    res.status(500).json({
+      message: "Server error",
+      error: isDev ? error.message : undefined,
+    });
   }
 };
 
