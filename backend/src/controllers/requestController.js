@@ -3,6 +3,15 @@ const { AuditLog } = require("../models/AuditLog");
 const { REQUEST_STATUS, AUDIT_ACTIONS } = require("../utils/constants");
 const { createAuditLog } = require("../services/auditService");
 
+const isDev = process.env.NODE_ENV === "development";
+const serverError = (res, error) =>
+  res
+    .status(500)
+    .json({
+      message: "Server error",
+      error: isDev ? error.message : undefined,
+    });
+
 /**
  * 1️⃣ Create Request (Draft)
  */
@@ -28,7 +37,7 @@ const createRequest = async (req, res) => {
 
     res.status(201).json(request);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    serverError(res, error);
   }
 };
 
@@ -39,24 +48,16 @@ const updateRequest = async (req, res) => {
   try {
     const request = await Request.findById(req.params.id);
 
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
-    }
-
-    if (request.status !== REQUEST_STATUS.DRAFT) {
+    if (!request) return res.status(404).json({ message: "Request not found" });
+    if (request.status !== REQUEST_STATUS.DRAFT)
       return res.status(400).json({ message: "Only draft can be edited" });
-    }
-
-    if (request.createdBy.toString() !== req.user.id) {
+    if (request.createdBy.toString() !== req.user.id)
       return res.status(403).json({ message: "Not authorized" });
-    }
 
     const { title, type, description } = req.body;
-
     request.title = title || request.title;
     request.type = type || request.type;
     request.description = description || request.description;
-
     await request.save();
 
     await createAuditLog({
@@ -69,7 +70,7 @@ const updateRequest = async (req, res) => {
 
     res.json(request);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    serverError(res, error);
   }
 };
 
@@ -80,20 +81,13 @@ const submitRequest = async (req, res) => {
   try {
     const request = await Request.findById(req.params.id);
 
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
-    }
-
-    if (request.status !== REQUEST_STATUS.DRAFT) {
+    if (!request) return res.status(404).json({ message: "Request not found" });
+    if (request.status !== REQUEST_STATUS.DRAFT)
       return res.status(400).json({ message: "Only draft can be submitted" });
-    }
-
-    if (request.createdBy.toString() !== req.user.id) {
+    if (request.createdBy.toString() !== req.user.id)
       return res.status(403).json({ message: "Not authorized" });
-    }
 
     const oldStatus = request.status;
-
     request.status = REQUEST_STATUS.SUBMITTED;
     await request.save();
 
@@ -107,7 +101,7 @@ const submitRequest = async (req, res) => {
 
     res.json(request);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    serverError(res, error);
   }
 };
 
@@ -118,22 +112,15 @@ const approveRequest = async (req, res) => {
   try {
     const request = await Request.findById(req.params.id);
 
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
-    }
-
-    if (request.status !== REQUEST_STATUS.SUBMITTED) {
+    if (!request) return res.status(404).json({ message: "Request not found" });
+    if (request.status !== REQUEST_STATUS.SUBMITTED)
       return res
         .status(400)
         .json({ message: "Only submitted requests can be approved" });
-    }
-
-    if (request.assignedApprover.toString() !== req.user.id) {
+    if (request.assignedApprover.toString() !== req.user.id)
       return res.status(403).json({ message: "Not assigned approver" });
-    }
 
     const oldStatus = request.status;
-
     request.status = REQUEST_STATUS.APPROVED;
     await request.save();
 
@@ -147,7 +134,7 @@ const approveRequest = async (req, res) => {
 
     res.json(request);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    serverError(res, error);
   }
 };
 
@@ -158,22 +145,15 @@ const rejectRequest = async (req, res) => {
   try {
     const request = await Request.findById(req.params.id);
 
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
-    }
-
-    if (request.status !== REQUEST_STATUS.SUBMITTED) {
+    if (!request) return res.status(404).json({ message: "Request not found" });
+    if (request.status !== REQUEST_STATUS.SUBMITTED)
       return res
         .status(400)
         .json({ message: "Only submitted requests can be rejected" });
-    }
-
-    if (request.assignedApprover.toString() !== req.user.id) {
+    if (request.assignedApprover.toString() !== req.user.id)
       return res.status(403).json({ message: "Not assigned approver" });
-    }
 
     const oldStatus = request.status;
-
     request.status = REQUEST_STATUS.REJECTED;
     await request.save();
 
@@ -187,7 +167,7 @@ const rejectRequest = async (req, res) => {
 
     res.json(request);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    serverError(res, error);
   }
 };
 
@@ -199,7 +179,7 @@ const getMyRequests = async (req, res) => {
     const requests = await Request.find({ createdBy: req.user.id });
     res.json(requests);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    serverError(res, error);
   }
 };
 
@@ -210,9 +190,7 @@ const getRequestLogs = async (req, res) => {
   try {
     const request = await Request.findById(req.params.id);
 
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
-    }
+    if (!request) return res.status(404).json({ message: "Request not found" });
 
     const isCreator = request.createdBy.toString() === req.user.id;
     const isApprover = request.assignedApprover.toString() === req.user.id;
@@ -228,23 +206,21 @@ const getRequestLogs = async (req, res) => {
 
     res.json(logs);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    serverError(res, error);
   }
 };
+
+/**
+ * 8️⃣ User Dashboard
+ */
 const getUserDashboard = async (req, res) => {
   try {
     const { status } = req.query;
-
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
 
-    const query = {
-      createdBy: req.user.id,
-    };
-
-    if (status) {
-      query.status = status;
-    }
+    const query = { createdBy: req.user.id };
+    if (status) query.status = status;
 
     const requests = await Request.find(query)
       .populate("createdBy", "name email")
@@ -255,10 +231,13 @@ const getUserDashboard = async (req, res) => {
 
     res.json(requests);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    serverError(res, error);
   }
 };
 
+/**
+ * 9️⃣ Pending Approvals
+ */
 const getPendingApprovals = async (req, res) => {
   try {
     const requests = await Request.find({
@@ -270,15 +249,18 @@ const getPendingApprovals = async (req, res) => {
 
     res.json(requests);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    serverError(res, error);
   }
 };
+
+/**
+ * 🔟 Admin - All Requests
+ */
 const getAllRequestsAdmin = async (req, res) => {
   try {
     const { status, type, createdBy, page = 1, limit = 10 } = req.query;
 
     const query = {};
-
     if (status) query.status = status;
     if (type) query.type = type;
     if (createdBy) query.createdBy = createdBy;
@@ -292,18 +274,20 @@ const getAllRequestsAdmin = async (req, res) => {
 
     res.json(requests);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    serverError(res, error);
   }
 };
+
+/**
+ * 1️⃣1️⃣ Get Request By ID
+ */
 const getRequestById = async (req, res) => {
   try {
     const request = await Request.findById(req.params.id)
       .populate("createdBy", "name email role")
       .populate("assignedApprover", "name email role");
 
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
-    }
+    if (!request) return res.status(404).json({ message: "Request not found" });
 
     const isCreator = request.createdBy._id.toString() === req.user.id;
     const isApprover = request.assignedApprover._id.toString() === req.user.id;
@@ -315,7 +299,7 @@ const getRequestById = async (req, res) => {
 
     res.json(request);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    serverError(res, error);
   }
 };
 
