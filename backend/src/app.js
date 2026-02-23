@@ -6,6 +6,8 @@ const app = express();
 const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/authMiddleware");
 const requestRoutes = require("./routes/requestRoutes");
+const userRoutes = require("./routes/userRoutes");
+
 app.use(express.json());
 
 app.use(cookieParser());
@@ -17,6 +19,7 @@ app.use(
     credentials: true, // ✅ required for cookies to work cross-origin
   }),
 );
+app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/requests", requestRoutes);
 app.get("/health", (req, res) => {
