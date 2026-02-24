@@ -60,7 +60,7 @@ export default function DashboardLayout() {
       <div className="h-16 flex items-center px-6 border-b border-slate-800/60">
         <button
           onClick={() => navigate("/")}
-          className="text-lg font-bold tracking-tight text-white hover:opacity-80 transition"
+          className="text-lg font-bold tracking-tight text-white hover:opacity-80 transition cursor-pointer"
         >
           Flow<span className="text-indigo-400">Gate</span>
         </button>
